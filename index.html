@@ -73,7 +73,20 @@
     .fixed-actions { position:sticky; bottom:0; left:0; right:0; background:rgba(249,250,251,0.95); backdrop-filter:blur(8px); border-top:1px solid var(--border); padding:12px 16px; margin:0 -16px -16px; display:flex; gap:8px; flex-wrap:wrap; }
     .fixed-actions .btn { flex:1; min-width:120px; margin-bottom:0; }
     .fixed-actions .btn:last-child { margin-bottom:0; }
-    @media (max-width:600px) { .fixed-actions { flex-direction:column; } .fixed-actions .btn { width:100%; } }
+    @media (max-width:600px) { 
+      .fixed-actions { 
+        flex-direction:row; 
+        flex-wrap:wrap; 
+        gap:6px; 
+      } 
+      .fixed-actions .btn { 
+        flex:1; 
+        min-width:100px; 
+        font-size:14px; 
+        padding:10px 8px; 
+        text-align:center; 
+      } 
+    }
     .report-grid { grid-template-columns:1fr !important; }
     @media (min-width:768px) { .report-grid { grid-template-columns:1fr 1fr !important; } }
   </style>
@@ -2662,10 +2675,21 @@
 
     // PDF下载功能（使用jsPDF + 中文字体支持）
     function downloadPDFReport() {
+      // 显示加载提示
+      const loadingMsg = document.createElement('div')
+      loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px;border-radius:8px;z-index:10000;font-size:16px;'
+      loadingMsg.textContent = '正在生成PDF报告...'
+      document.body.appendChild(loadingMsg)
+      
       // 动态加载jsPDF和html2canvas（用于支持中文）
       if(typeof window.jsPDF === 'undefined') {
         const script1 = document.createElement('script')
         script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        script1.onerror = () => {
+          document.body.removeChild(loadingMsg)
+          // 如果CDN加载失败，提供备用方案
+          alert('PDF生成功能暂时不可用，请截图保存报告或联系客服获取报告文件。')
+        }
         script1.onload = () => {
           loadHtml2Canvas()
         }
@@ -2679,6 +2703,12 @@
       if(typeof window.html2canvas === 'undefined') {
         const script2 = document.createElement('script')
         script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+        script2.onerror = () => {
+          const loadingMsg = document.querySelector('div[style*="正在生成PDF报告"]')
+          if(loadingMsg) document.body.removeChild(loadingMsg)
+          // 如果html2canvas加载失败，提供备用方案
+          alert('PDF生成功能暂时不可用，请截图保存报告或联系客服获取报告文件。')
+        }
         script2.onload = () => {
           generatePDF()
         }
@@ -2730,6 +2760,10 @@
             
             pdf.save('ROI测算报告.pdf')
             
+            // 清理加载提示
+            const loadingMsg = document.querySelector('div[style*="正在生成PDF报告"]')
+            if(loadingMsg) document.body.removeChild(loadingMsg)
+            
             // 恢复报告区域显示状态
             if(reportSection.style.position === 'absolute') {
               reportSection.style.display = ''
@@ -2739,6 +2773,9 @@
             }
           }).catch(err => {
             console.error('生成PDF失败:', err)
+            // 清理加载提示
+            const loadingMsg = document.querySelector('div[style*="正在生成PDF报告"]')
+            if(loadingMsg) document.body.removeChild(loadingMsg)
             // 恢复报告区域显示状态
             if(reportSection && reportSection.style.position === 'absolute') {
               reportSection.style.display = ''
@@ -2887,6 +2924,10 @@
       
       // 保存PDF
       doc.save('ROI测算报告.pdf')
+      
+      // 清理加载提示
+      const loadingMsg = document.querySelector('div[style*="正在生成PDF报告"]')
+      if(loadingMsg) document.body.removeChild(loadingMsg)
     }
     
     // 最后的备选方案：确保智能推荐按钮能工作
