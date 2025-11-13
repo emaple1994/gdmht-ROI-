@@ -2673,8 +2673,19 @@
       }
     })
 
-    // PDF下载功能（使用jsPDF + 中文字体支持）
+    // 检测是否为移动设备
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768
+    }
+
+    // PDF下载功能（针对移动端优化）
     function downloadPDFReport() {
+      // 移动端优先使用替代方案
+      if(isMobileDevice()) {
+        showMobileDownloadOptions()
+        return
+      }
+      
       // 显示加载提示
       const loadingMsg = document.createElement('div')
       loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px;border-radius:8px;z-index:10000;font-size:16px;'
@@ -2688,7 +2699,7 @@
         script1.onerror = () => {
           document.body.removeChild(loadingMsg)
           // 如果CDN加载失败，提供备用方案
-          alert('PDF生成功能暂时不可用，请截图保存报告或联系客服获取报告文件。')
+          showMobileDownloadOptions()
         }
         script1.onload = () => {
           loadHtml2Canvas()
@@ -2928,6 +2939,184 @@
       // 清理加载提示
       const loadingMsg = document.querySelector('div[style*="正在生成PDF报告"]')
       if(loadingMsg) document.body.removeChild(loadingMsg)
+    }
+
+    // 移动端下载选项
+    function showMobileDownloadOptions() {
+      const overlay = document.createElement('div')
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;'
+      
+      const modal = document.createElement('div')
+      modal.style.cssText = 'background:white;border-radius:12px;padding:24px;max-width:400px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.3);'
+      
+      modal.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <h3 style="margin:0;color:#E60020;font-size:18px;">📄 获取ROI报告</h3>
+          <button id="closeMobileOptions" style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+        
+        <div style="margin-bottom:20px;color:#666;font-size:14px;line-height:1.6;">
+          由于移动端浏览器限制，我们为您提供以下获取报告的方式：
+        </div>
+        
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <button id="shareReportBtn" class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+            📱 分享报告链接
+          </button>
+          
+          <button id="copyReportDataBtn" class="btn btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+            📋 复制报告数据
+          </button>
+          
+          <button id="emailReportBtn" class="btn btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+            📧 邮件发送报告
+          </button>
+          
+          <button id="screenshotTipBtn" class="btn btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+            📸 截图保存指南
+          </button>
+        </div>
+        
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999;text-align:center;">
+          如需PDF文件，请使用电脑端访问或联系客服
+        </div>
+      `
+      
+      overlay.appendChild(modal)
+      document.body.appendChild(overlay)
+      
+      // 绑定事件
+      document.getElementById('closeMobileOptions').onclick = () => {
+        document.body.removeChild(overlay)
+      }
+      
+      document.getElementById('shareReportBtn').onclick = () => {
+        shareReport()
+      }
+      
+      document.getElementById('copyReportDataBtn').onclick = () => {
+        copyReportData()
+      }
+      
+      document.getElementById('emailReportBtn').onclick = () => {
+        emailReport()
+      }
+      
+      document.getElementById('screenshotTipBtn').onclick = () => {
+        showScreenshotTip()
+      }
+      
+      // 点击背景关闭
+      overlay.onclick = (e) => {
+        if(e.target === overlay) {
+          document.body.removeChild(overlay)
+        }
+      }
+    }
+
+    // 分享报告链接
+    function shareReport() {
+      const reportData = generateReportText()
+      const encodedData = encodeURIComponent(reportData)
+      const shareUrl = `${window.location.origin}${window.location.pathname}?report=${encodedData}`
+      
+      if(navigator.share) {
+        navigator.share({
+          title: 'ROI测算报告',
+          text: '玛哈特矫平机ROI测算报告',
+          url: shareUrl
+        }).catch(err => {
+          copyToClipboard(shareUrl, '报告链接已复制到剪贴板')
+        })
+      } else {
+        copyToClipboard(shareUrl, '报告链接已复制到剪贴板')
+      }
+    }
+
+    // 复制报告数据
+    function copyReportData() {
+      const reportText = generateReportText()
+      copyToClipboard(reportText, '报告数据已复制到剪贴板')
+    }
+
+    // 邮件发送报告
+    function emailReport() {
+      const reportText = generateReportText()
+      const subject = encodeURIComponent('ROI测算报告 - 玛哈特矫平机')
+      const body = encodeURIComponent(reportText)
+      const mailtoUrl = `mailto:?subject=${subject}&body=${body}`
+      
+      window.location.href = mailtoUrl
+    }
+
+    // 显示截图指南
+    function showScreenshotTip() {
+      alert('截图保存指南：\n\n1. 返回报告页面\n2. 使用手机截图功能（通常是音量键+电源键）\n3. 可以分段截图保存完整报告\n4. 截图会自动保存到相册中\n\n提示：建议截图前先滚动查看完整报告内容')
+    }
+
+    // 生成报告文本
+    function generateReportText() {
+      const reportTotalSaving = document.getElementById('reportTotalSaving')?.textContent || '未计算'
+      const reportPayback = document.getElementById('reportPayback')?.textContent || '未计算'
+      const reportROI = document.getElementById('reportROI')?.textContent || '未计算'
+      const reportTotalInvestment = document.getElementById('reportTotalInvestment')?.textContent || '未计算'
+      
+      return `【玛哈特矫平机ROI测算报告】
+
+📊 核心数据：
+• 年净收益：${reportTotalSaving}
+• 投资回报周期：${reportPayback}
+• 年化ROI：${reportROI}
+• 总投资：${reportTotalInvestment}
+
+🏭 生产情况：
+• 所属行业：${state.industry || '通用钣金'}
+• 主要材料：${state.material || '冷轧钢'}
+• 最大厚度：${state.thicknessMax || 3.0}mm
+• 最大板宽：${state.maxWidth || 1500}mm
+
+📞 联系方式：
+• 官网：www.mahat.com.cn
+• 电话：400-xxx-xxxx
+• 邮箱：info@mahat.com.cn
+
+⚠️ 注：此报告基于输入数据估算，实际效果需现场评估确认。矫平机寿命通常10年以上，回收期后均为纯收益。
+
+生成时间：${new Date().toLocaleString('zh-CN')}`
+    }
+
+    // 复制到剪贴板
+    function copyToClipboard(text, successMsg) {
+      if(navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert(successMsg)
+        }).catch(() => {
+          fallbackCopyTextToClipboard(text, successMsg)
+        })
+      } else {
+        fallbackCopyTextToClipboard(text, successMsg)
+      }
+    }
+
+    // 备用复制方法
+    function fallbackCopyTextToClipboard(text, successMsg) {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      
+      try {
+        document.execCommand('copy')
+        alert(successMsg)
+      } catch(err) {
+        alert('复制失败，请手动选择文本复制')
+      }
+      
+      document.body.removeChild(textArea)
     }
     
     // 最后的备选方案：确保智能推荐按钮能工作
